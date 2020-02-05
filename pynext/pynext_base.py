@@ -12,37 +12,51 @@ from typing import Tuple, List
 
 
 def throw_dice(dice : float)->bool:
+    """Throws a random number and compares with value of dice. Returns true if random < dice"""
     cond = False
     if np.random.random() < dice:
         cond = True
     return cond
 
 
-def sample_spherical(npoints, ndim=3):
+def sample_spherical(npoints: int, ndim: int=3)->np.array:
     """Generate points distributed in the surface of a unit sphere.
     The points are in a matrix ((x1,x2,x3...xn), (y1,y2,y3...yn), (z1,z2,z3...zn))
-    where n is the number of random points"""
-    vec = np.random.randn(ndim, npoints)
-    vec /=    np.linalg.norm(vec, axis=0)
+    where n is the number of random points
+
+    """
+    vec =  np.random.randn(ndim, npoints)
+    vec /= np.linalg.norm(vec, axis=0)
     return vec
 
 
-def vectors_spherical(npoints, ndim=3):
+def vectors_spherical(npoints: int, ndim: int=3)->np.array:
     """Generate vectors distributed in the surface of a unit sphere.
     The vectros are in a matrix ((x1,y1,z1), (x2,y2,z2)... (xn,yn, zn))
-    where n is the number of random points"""
+    where n is the number of random points
+
+    """
     return sample_spherical(npoints).T
 
 
-def random_point_around_p_inside_cylinder(c: Cylinder, p : np.array, verbose,
-                                          scale=1, maxt=100)->np.array:
+def generate_random_point_around_p(c: Cylinder, p: np.array, scale: float=1)->np.array:
+    """Generates a random point in a sphere around p"""
+
+    vs = scale * vectors_spherical(npoints=1)
+    r = vs[0] + p
+    return r
+
+
+def random_point_around_p_inside_cylinder(c: Cylinder, p : np.array, verbose: bool =False,
+                                          scale: float =1, maxt: int=1000)->np.array:
+    """Generates a random point in a sphere around p. Discards points outside cylynder"""
+
     cnd = True
     cnt = 0
     scale = 1
     while cnd and cnt < maxt:
         cnt+=1
-        vs = scale* vectors_spherical(npoints=1)
-        r = vs[0] + p
+        r = generate_random_point_around_p(c, p, scale)
         if verbose:
             print(f'generating random point {r}')
         pic = point_inside_cylinder(c, r)
@@ -56,25 +70,13 @@ def random_point_around_p_inside_cylinder(c: Cylinder, p : np.array, verbose,
     return r
 
 
-def generate_random_point_around_p(c: Cylinder, p : np.array,
-                                     scale :float, verbose : bool)->np.array:
-
-    vs = scale * vectors_spherical(npoints=1)
-    r = vs[0] + p
-    if verbose:
-        print(f'generating random point {r}')
-        pic = point_inside_cylinder(c, r)
-        print(f'point inside cylinder? {pic}')
-
-    return r
-
-
 def in_endcaps(c: Cylinder, p : np.array)->bool:
+    """Returns True if point in end-caps of cyinder"""
     close = np.isclose(np.array([p[2],p[2]]), np.array([c.zmin, c.zmax]), atol=1e-06)
     return close.any()
 
 
-def cylinder_intersection_roots(r: Ray, c: Cylinder, eps=1e-9)->np.array:
+def cylinder_intersection_roots(r: Ray, c: Cylinder, eps: float =1e-9)->np.array:
     """Computes intersection roots between a ray and a cylinder"""
     a = r.d[0]**2 + r.d[1]**2
     b = 2 * (r.e[0] * r.d[0] + r.e[1] * r.d[1])
@@ -109,12 +111,14 @@ def ray_intersection_with_cylinder(r: Ray, c:Cylinder)->Tuple[float,float]:
     return t, P
 
 
-def vuv_transport(c : Cylinder, p=np.array([0,0,0]), nphotons=10)->np.array:
+def vuv_transport(c : Cylinder, p=np.array([0,0,0]), nphotons: int=10)->np.array:
     """VUV transport is a short name for
     generate_photons_in_point_p_inside_cylinder_and_propagate_to_cylinder_surface()
     The idea is that the photons generated in a point inside the cylinder are VUV
     photons created by S1 or S2 signals. Those photons propagate to the detector
-    light tubes"""
+    light tubes
+
+    """
 
     n = int(nphotons)
     R = vectors_spherical(n) #
@@ -130,12 +134,14 @@ def vuv_transport(c : Cylinder, p=np.array([0,0,0]), nphotons=10)->np.array:
 
 
 def vuv_to_blue_transport_from_point(c: Cylinder, p : np.array,
-                                     scale=1, verbose=False)->np.array:
+                                     scale: float=1, verbose: bool =False)->np.array:
     """A VUV photon impinging the cylinder c on point p, is WLS by TPB
-    and re-emitted isotropically, then transported to the cylinder walls"""
+    and re-emitted isotropically, then transported to the cylinder walls
+
+    """
 
 
-    rp   = generate_random_point_around_p(c, p, scale, verbose)
+    rp   = generate_random_point_around_p(c, p, scale)
     d    = unit_vectors_from_two_points(p,rp)
     r    = Ray(p,d)  # ray from point p in the direction of d
     t, P = ray_intersection_with_cylinder(r, c)
@@ -149,9 +155,11 @@ def vuv_to_blue_transport_from_point(c: Cylinder, p : np.array,
 
 
 def blue_to_blue_transport_from_point(c: Cylinder, p : np.array,
-                                      scale=1, verbose=False)->np.array:
+                                      scale: float=1, verbose: bool=False)->np.array:
     """A VUV photon impinging the cylinder c on point p, is WLS by TPB
-    and re-emitted isotropically, then transported to the cylinder walls"""
+    and re-emitted isotropically, then transported to the cylinder walls
+
+    """
 
 
     rp   = random_point_around_p_inside_cylinder(c, p, verbose)
@@ -167,9 +175,13 @@ def blue_to_blue_transport_from_point(c: Cylinder, p : np.array,
     return P
 
 
-def vuv_to_blue_transport(c: Cylinder, vuv : np.array, scale=1, verbose=False):
-    BLUE = np.zeros((vuv.shape[0], 3))
-    for i, p in enumerate(vuv):
+def vuv_to_blue_transport(c: Cylinder, VUV : np.array,
+                          scale: float =1, verbose: bool=False)->np.array:
+
+    """ Photons in the VUV array are shifted and propagated one to one"""
+
+    BLUE = np.zeros((VUV.shape[0], 3))
+    for i, p in enumerate(VUV):
         if verbose:
             print(f'shifting vuv photon from point {p}')
         P = vuv_to_blue_transport_from_point(c, p, scale, verbose)
@@ -180,9 +192,10 @@ def vuv_to_blue_transport(c: Cylinder, vuv : np.array, scale=1, verbose=False):
 
 
 
-def blue_to_green_transport(c: Cylinder, BLUE : np.array,  fwls: FiberWLS,
+def blue_to_green_transport(c: Cylinder, BLUE : np.array,  fwls: FiberWLS, gridTrans: float = 0.9,
                             nphotons: int = 1e+9,scale : int =1,
                             verbose : bool =False)->Tuple[int, np.array]:
+    """ Photons in the BLUE array are propagated and converted into green photons"""
     NR = []
     ngreen=0
     nabsPTFE = 0
@@ -207,7 +220,7 @@ def blue_to_green_transport(c: Cylinder, BLUE : np.array,  fwls: FiberWLS,
                 if verbose:
                     print(f'photon is  in endcaps: reflect it')
 
-                if throw_dice(dice = fwls.qptfe):
+                if throw_dice(dice = fwls.qptfe * gridTrans):
                     nr += 1
                     if verbose:
                         print(f'reflect photon, nr = {nr}')
@@ -260,6 +273,7 @@ def blue_to_green_transport(c: Cylinder, BLUE : np.array,  fwls: FiberWLS,
                         blue = False
 
     return ngreen, nabsPTFE, nabsFiber, nendFiber, np.array(NR)
+
 
 def count_number_appearance(x : np.array, value: float)->int:
     """Counts the number of times that an element with value appears in array x"""

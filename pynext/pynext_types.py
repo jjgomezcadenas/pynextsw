@@ -6,6 +6,19 @@ from scipy.linalg import norm
 from scipy.special import erfc
 from  . system_of_units import *
 
+from typing      import Tuple
+from typing      import Dict
+from typing      import List
+from typing      import TypeVar
+from typing      import Optional
+from enum        import Enum
+
+Number = TypeVar('Number', None, int, float)
+Str   = TypeVar('Str', None, str)
+Range = TypeVar('Range', None, Tuple[float, float])
+Array = TypeVar('Array', List, np.array)
+Int = TypeVar('Int', None, int)
+
 @dataclass
 class Shape(abc.ABC):
     @property
