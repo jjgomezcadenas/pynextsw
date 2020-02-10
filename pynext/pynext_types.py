@@ -19,6 +19,24 @@ Range = TypeVar('Range', None, Tuple[float, float])
 Array = TypeVar('Array', List, np.array)
 Int = TypeVar('Int', None, int)
 
+class Verbosity(Enum):
+    mute     = 0
+    concise  = 1
+    chat     = 2
+    verbose  = 3
+    vverbose = 4
+
+
+def vprint(msg, verbosity, level=Verbosity.mute):
+    if verbosity.value <= level.value and level.value >0:
+        print(msg)
+        
+
+def vpblock(msgs, verbosity, level=Verbosity.mute):
+    for msg in msgs:
+        vprint(msg, verbosity, level)
+
+
 @dataclass
 class Shape(abc.ABC):
     @property
@@ -43,6 +61,17 @@ class Cylinder(Shape):
 
         mag, v, n1, n2 = self.unit_vectors_()
         self.P, self.P2, self.P3 = self.surfaces_(mag,  v, n1, n2)
+
+    def normal_to_barrel(self, P : np.array)->np.array:
+        """Normal to the cylinder barrel
+        Uses equation of cylynder: F(x,y,z) = x^2 + y^2 - r^2 = 0
+        then n = Grad(F)_P /Norm(Grad(F))_P
+        n = (2x, 2y, 0)/sqrt(4x^2 + 4y^2) = (x,y,0)/r (P)
+        """
+        return np.array([P[0], P[1], 0]) / self.r
+
+    def cylinder_equation(self, P : np.array)->float:
+        return P[0]**2 + P[1]** 2 - self.r**2
 
     @property
     def length(self)->float:
@@ -141,6 +170,10 @@ class Ray:
     d   : np.array
     def ray(self,t):
         return self.e + t * self.d
+    @property
+    def unit_vector(self):
+        v = self.d - self.e
+        return v / norm(v)
 
 
 @dataclass
@@ -193,6 +226,7 @@ class FiberWLS:
         self.thetac1 = np.arcsin(self.nclad1/self.ncore)
         self.thetat1  = 0.5 * np.pi - self.thetac1
         self.ptir1 = (1 - np.cos(self.thetat1))  # 2 x 2 pi (1 - cos(theta)) /4 pi (forward and backward)
+        #self.ptir1 = np.cos(self.thetac1)  # 2 x 2 pi (cos(theta) /4 pi (forward and backward)
 
         # refracted to clad2 : critical
         self.theta2 = np.arcsin((self.nclad1 / self.nclad2) * np.sin(self.thetac1))
@@ -201,6 +235,7 @@ class FiberWLS:
         self.thetac2 = np.arcsin(self.nclad2/self.nclad1)
         self.thetat2  = 0.5 * np.pi - self.thetac2
         self.ptir2 = (1 - np.cos(self.thetat2))  # fraction between two claddings
+        #self.ptir2 = np.cos(self.thetac2)
 
         self.teff1 = self.qfib * self.ptir1
         self.teff2 = self.qfib * self.ptir2

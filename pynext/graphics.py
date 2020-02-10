@@ -34,16 +34,45 @@ def draw_cylynder_surface(c: Cylinder, ax, units, alpha=0.2, barrelColor='blue',
     ax.plot_surface(c.P3[0]/units, c.P3[1]/units, c.P3[2]/units, color=cupColor, alpha=alpha)
 
 
-def draw_cylinder(c : Cylinder, units=cm, alpha=0.2, barrelColor='blue', cupColor='red',
-                  figsize=(16,16)):
+def draw_cylinder(c : Cylinder, units=mm, alpha=0.2, barrelColor='blue', cupColor='red',
+                  figsize=(16,16), DWORLD=False, WDIM=((-1,1),(-1,1),(-1,1))):
 
 
     fig = plt.figure(figsize=figsize)
     ax=plt.subplot(111, projection='3d')
+    if DWORLD:
+        ax.set_xlim3d(WDIM[0][0], WDIM[0][1])
+        ax.set_ylim3d(WDIM[1][0], WDIM[1][1])
+        ax.set_zlim3d(WDIM[2][0], WDIM[2][1])
     draw_cylynder_surface(c, ax, units, alpha,  barrelColor, cupColor)
     #ax.plot_surface(c.P[0], c.P[1], c.P[2], color=barrelColor, alpha=alpha)
     #ax.plot_surface(c.P2[0], c.P2[1], c.P2[2], color=cupColor, alpha=alpha)
     #ax.plot_surface(c.P3[0], c.P3[1], c.P3[2], color=cupColor, alpha=alpha)
+    plt.show()
+
+
+def draw_cylnder_nomal_at_P(P: np.array, c : Cylinder, tscale=1,
+                            units=mm, alpha=0.2, barrelColor='blue', cupColor='red',
+                            figsize=(16,16)):
+
+    N = c.normal_to_barrel(P)
+
+    def draw_normal(P,N):
+        tt = np.linspace(0, tscale, 100)
+
+        xi = P[0] + tt * N[0]
+        yi = P[1] + tt * N[1]
+        zi = P[2] + tt * N[2]
+        ax.plot(xi, yi, zi)
+
+    xi,yi,zi = xyz_from_points(np.array([P]))
+
+    fig = plt.figure(figsize=figsize)
+    ax=plt.subplot(111, projection='3d')
+    draw_cylynder_surface(c, ax, units, alpha, barrelColor, cupColor)
+
+    draw_normal(P, N)
+    ax.scatter(xi, yi, zi, s=25, c='k', zorder=10)
     plt.show()
 
 

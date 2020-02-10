@@ -7,6 +7,8 @@ from  . system_of_units import *
 from . pynext_types import Cylinder
 from . pynext_types import Ray
 from . pynext_types import FiberWLS
+from . pynext_types import Verbosity
+from . pynext_types import vprint, vpblock
 
 from typing import Tuple, List
 
@@ -78,6 +80,7 @@ def in_endcaps(c: Cylinder, p : np.array)->bool:
 
 def cylinder_intersection_roots(r: Ray, c: Cylinder, eps: float =1e-9)->np.array:
     """Computes intersection roots between a ray and a cylinder"""
+
     a = r.d[0]**2 + r.d[1]**2
     b = 2 * (r.e[0] * r.d[0] + r.e[1] * r.d[1])
     c = r.e[0]**2 + r.e[1]**2 - c.r**2
@@ -101,7 +104,7 @@ def ray_intersection_with_cylinder_end_caps(r: Ray, c: Cylinder, t: float)->np.a
     return t, r.ray(t)
 
 
-def ray_intersection_with_cylinder(r: Ray, c:Cylinder)->Tuple[float,float]:
+def ray_intersection_with_cylinder(r: Ray, c:Cylinder)->Tuple[float,np.array]:
     """Intersection between a ray and a cylinder"""
     t = cylinder_intersection_roots(r, c)
     P = r.ray(t)
@@ -109,6 +112,29 @@ def ray_intersection_with_cylinder(r: Ray, c:Cylinder)->Tuple[float,float]:
     if z < c.zmin or z > c.zmax:
         t, P = ray_intersection_with_cylinder_end_caps(r, c, t)
     return t, P
+
+
+def reflected_ray_in_cylinder(r: Ray, c:Cylinder)->np.array:
+    """specular reflection in a cylinder
+    Given an incident ray I and a normal N, the reflected ray R is:
+    vect(R) = vect(I) - 2 (vect(N) cdot vect(I)) vect(I)
+
+    """
+    _, P =  ray_intersection_with_cylinder(r, c)
+    N    =  c.normal_to_barrel(P)
+    I    =  r.d
+    NI   =  np.dot(N, I)
+    return I -2 * NI * I
+
+
+def reflected_ray(I:np.array, N:np.array)->np.array:
+    """specular reflection in a cylinder
+    Given an incident ray I and a normal N, the reflected ray R is:
+    vect(R) = vect(I) - 2 (vect(N) cdot vect(I)) vect(I)
+
+    """
+    NI   =  np.dot(N, I)
+    return I -2 * NI * N
 
 
 def vuv_transport(c : Cylinder, p=np.array([0,0,0]), nphotons: int=10)->np.array:
@@ -139,7 +165,6 @@ def vuv_to_blue_transport_from_point(c: Cylinder, p : np.array,
     and re-emitted isotropically, then transported to the cylinder walls
 
     """
-
 
     rp   = generate_random_point_around_p(c, p, scale)
     d    = unit_vectors_from_two_points(p,rp)
